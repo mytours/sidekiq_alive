@@ -8,6 +8,7 @@
 
 ## Changes in fork:
 - Increase the default concurrency and automatically retry `SidekiqAlive:Worker` when encountering `ConnectionPool::TimeoutError`. Seems to be a bad interaction with `sidekiq-limit_fetch`
+- Consider a process with job running for more than an hour as unhealthy
 
 ---
 

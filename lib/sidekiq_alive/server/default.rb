@@ -46,6 +46,12 @@ module SidekiqAlive
           return logger.debug("[SidekiqAlive] Server in quiet mode, skipping alive key lookup!")
         end
 
+        if slow_job_processing?
+          res.status = 503
+          res.body = "Service Unavailable"
+          return logger.debug("[SidekiqAlive] Slow job processing, skipping alive key lookup!")
+        end
+
         if SidekiqAlive.alive?
           res.status = 200
           res.body = "Alive!"
@@ -73,6 +79,32 @@ module SidekiqAlive
 
       def quiet?
         @quiet && (Time.now - @quiet) < SidekiqAlive.config.quiet_timeout
+      end
+
+      def slow_job_processing?
+        limit = 3600 # 1 hour
+
+        processes = Sidekiq::ProcessSet.new
+        hostname = ENV.fetch("HOSTNAME")
+        current_process = processes.find { |p| p["hostname"] == hostname }
+
+        return false if current_process.blank?
+
+        identity = current_process["identity"]
+
+        workers = Sidekiq::Workers.new
+        workers.each do |process_id, thread_id, work|
+          next unless process_id == identity
+
+          if (Time.now - work.run_at) >= limit
+            payload = JSON.parse(work.payload)
+            logger.info("[SidekiqAlive] Job running for more than an hour: #{payload["class"]} - #{payload["args"]}")
+
+            return true
+          end
+        end
+
+        false
       end
     end
   end
