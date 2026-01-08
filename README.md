@@ -6,6 +6,11 @@
 
 ---
 
+## Changes in fork:
+- Increase the default concurrency and automatically retry `SidekiqAlive:Worker` when encountering `ConnectionPool::TimeoutError`. Seems to be a bad interaction with `sidekiq-limit_fetch`
+
+---
+
 SidekiqAlive offers a solution to add liveness probe for a Sidekiq instance deployed in Kubernetes.
 This library can be used to check sidekiq health outside kubernetes.
 
@@ -264,9 +269,9 @@ SidekiqAlive.setup do |config|
   # The maximum number of Redis connections requested for the SidekiqAlive pool.
   # Can also be set with the environment variable SIDEKIQ_ALIVE_CONCURRENCY.
   # NOTE: only effects Sidekiq 7 or greater.
-  # default: 2
+  # default: 5
   #
-  #    config.concurrency = 3
+  #    config.concurrency = 7
 
   # ==> Rack server
   # Web server used to serve an HTTP response. By default simple GServer based http server is used.

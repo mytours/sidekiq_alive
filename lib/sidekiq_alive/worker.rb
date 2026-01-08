@@ -8,14 +8,20 @@ module SidekiqAlive
 
     # Passing the hostname argument it's only for debugging enqueued jobs
     def perform(_hostname = SidekiqAlive.hostname)
-      # Checks if custom liveness probe passes should fail or return false
-      return unless config.custom_liveness_probe.call
+      begin
+        # Checks if custom liveness probe passes should fail or return false
+        return unless config.custom_liveness_probe.call
 
-      # Writes the liveness in Redis
-      write_living_probe
-      remove_orphaned_queues
-      # schedules next living probe
-      self.class.perform_in(config.worker_interval, current_hostname)
+        # Writes the liveness in Redis
+        write_living_probe
+        remove_orphaned_queues
+        # schedules next living probe
+        self.class.perform_in(config.worker_interval, current_hostname)
+      rescue ConnectionPool::TimeoutError => e
+        # Seems to happen when sidekiq-limit_fetch is used. We retry after 5 seconds.
+        puts "[SidekiqAlive] ConnectionPool::TimeoutError: #{e.message}\n#{e.backtrace.join("\n")}"
+        self.class.perform_in(5.seconds, current_hostname)
+      end
     end
 
     def write_living_probe
